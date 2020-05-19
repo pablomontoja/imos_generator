@@ -25,6 +25,8 @@ class GaussianLog(object):
 		self.atoms_radii = []
 		self.atoms_numbers = []
 		self.total_mass = 0
+		self.where_are_esp_charges = 0
+		self.esp_charges = []
 
 		with open(self.filename, 'r') as file:
 			self.file_content = file.readlines()
@@ -33,6 +35,7 @@ class GaussianLog(object):
 			if '#' in line: self.calculation_commands = line
 			if 'Symbolic Z-matrix:' in line: self.initial_matrix_position = index+2
 			if 'Coordinates (Angstroms)' in line: self.where_are_matrices.append(index+3)
+			if 'ESP charges:' in line: self.where_are_esp_charges = index+2
 			if 'Charge =' in line:
 				self.charge = int(line.split("=")[1].split()[0])
 				self.multiplicity = int(line.split("=")[2].split()[0])
@@ -56,6 +59,9 @@ class GaussianLog(object):
 
 		self.atoms_numbers = self.get_atoms_numbers()
 		self.total_mass = sum(self.atoms_numbers)
+		self.esp_charges = self.get_esp_charges()
+
+		print self.nbo_charges
 
 		current_folder_path = os.path.dirname(os.path.abspath(__file__))
 		new_folder_path = os.path.dirname(os.path.abspath(__file__))+"/"+self.filename.split(".")[0]
@@ -111,6 +117,14 @@ class GaussianLog(object):
 			result.append(self.ATOM_NUMBER[index])
 		return result
 
+	def get_esp_charges(self):
+		result = []
+		for line in self.file_content[self.where_are_esp_charges:]:
+			if 'Sum of ESP charges' in line: break
+			line_data = filter(None, line.strip().split(" "))
+			result.append(line_data[2])
+		return result
+
 class Excel(object):
 	"""docstring for Excel"""
 	def __init__(self, gauss_log):
@@ -136,9 +150,15 @@ class Excel(object):
 			row += 1
 		# kolumna 6
 		row = 0
-		for charge in self.gauss_log.nbo_charges:
-			worksheet.write_number  (row, col + 5, float(charge))
-			row += 1
+		if len(self.gauss_log.nbo_charges) > 0:
+			print 'dupa'
+			for charge in self.gauss_log.nbo_charges:
+				worksheet.write_number  (row, col + 5, float(charge))
+				row += 1
+		else:
+			for charge in self.gauss_log.esp_charges:
+				worksheet.write_number  (row, col + 5, float(charge))
+				row += 1
 		# kolumna 7
 		row = 0
 		worksheet.write_string  (0, col + 6, "TOTAL z")
